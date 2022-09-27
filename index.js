@@ -2,10 +2,6 @@ const express = require('express');
 const axios = require('axios');
 const nunjucks = require('nunjucks');
 
-//const Database = require("@replit/database");
-
-//const db = new Database();
-
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 
@@ -16,21 +12,21 @@ const xdai = require('./xdai.js');
 let db = mongo.getDb();
 let collection;
 //collection.find({}).forEach(console.dir)
-db.then((db) => {collection = db.collection("collection"); 
+db.then((db) => {collection = db.collection("claims_info"); 
 });
 
 nunjucks.configure('templates', { autoescape: true });
 
-async function insert(addr,value) {
-  await collection.insertOne({"address":addr,"value":value});
+async function insert(addr, timestamp) {
+  await collection.insertOne({"address": addr, "last_claim": timestamp});
 }
 
-async function replace(addr,newvalue) {
-  await collection.replaceOne({"address":addr}, {"address":addr,"value":newvalue});
+async function replace(addr, newtimestamp) {
+  await collection.replaceOne({"address": addr}, {"address": addr, "last_claim": newtimestamp});
 }
 
 async function find(addr) {
-  return await collection.findOne({"address":addr});
+  return await collection.findOne({"address": addr});
 }
 
 async function count(query) {
@@ -61,7 +57,7 @@ app.get('/', async function (req, res) {
 app.post('/', async function (req, res) {
   let address = req.body['addr'];
 
-  let current_bal = await nano.check_bal(faucet_addr_nano);
+  let current_bal = await xdai.check_bal(faucet_addr_xdai);
   let amount = "0.001"; 
 
   if (req.cookies['xdai_last_claim']) {
@@ -89,7 +85,7 @@ app.post('/', async function (req, res) {
 
   let db_result = await find(address);
   if (db_result) {
-    db_result = db_result['value'];
+    db_result = db_result['last_claim'];
     if (Number(db_result)+claim_freq < Date.now()) {
       send = await xdai.send_xdai(address, amount);
       if (send == false) {
